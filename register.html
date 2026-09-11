@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="brand"><span class="seal">G</span>GHMC Connect</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="login.html">Login</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="seal-lg">G</div>
+      <h2>Create Citizen Account</h2>
+      <p class="sub">Register to report and track civic complaints</p>
+
+      <div id="alertBox" class="alert"></div>
+
+      <!-- FORM (syllabus: HTML Forms) -->
+      <form id="registerForm" novalidate>
+
+        <div class="form-group" id="grp-name">
+          <label for="fullName">Full Name</label>
+          <input type="text" id="fullName" placeholder="e.g. Priya Sharma">
+          <div class="error-text">Please enter your full name.</div>
+        </div>
+
+        <div class="form-group" id="grp-username">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="Choose a username">
+          <div class="error-text">Username must be at least 4 characters.</div>
+        </div>
+
+        <div class="form-group" id="grp-phone">
+          <label for="phone">Phone Number</label>
+          <input type="text" id="phone" placeholder="10-digit mobile number">
+          <div class="error-text">Please enter a valid 10-digit phone number.</div>
+        </div>
+
+        <div class="form-group" id="grp-password">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="At least 6 characters">
+          <div class="error-text">Password must be at least 6 characters.</div>
+        </div>
+
+        <div class="form-group" id="grp-confirm">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" placeholder="Re-enter password">
+          <div class="error-text">Passwords do not match.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Register</button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="login.html">Login here</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+  <script>
+    /* =========================================================
+       WHAT: Handles the register form submission.
+       WHY:  We must check the citizen's input before saving it
+             (Form Validation from the syllabus).
+       WHERE: Runs when the "Register" button is clicked.
+       HOW:  We stop the normal form submit, run our own checks
+             using plain JavaScript if/else, then save the user.
+       ========================================================= */
+
+    var form = document.getElementById("registerForm");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); // stop the page from reloading
+
+      // Read values from the form (DOM: getElementById + .value)
+      var fullName = document.getElementById("fullName").value.trim();
+      var username = document.getElementById("username").value.trim();
+      var phone = document.getElementById("phone").value.trim();
+      var password = document.getElementById("password").value;
+      var confirmPassword = document.getElementById("confirmPassword").value;
+
+      var isValid = true; // we flip this to false if any check fails
+
+      // Reset all error states first
+      var groups = ["grp-name", "grp-username", "grp-phone", "grp-password", "grp-confirm"];
+      for (var i = 0; i < groups.length; i++) {
+        document.getElementById(groups[i]).classList.remove("invalid");
+      }
+
+      // 1. Full name should not be empty
+      if (fullName === "") {
+        document.getElementById("grp-name").classList.add("invalid");
+        isValid = false;
+      }
+
+      // 2. Username at least 4 characters
+      if (username.length < 4) {
+        document.getElementById("grp-username").classList.add("invalid");
+        isValid = false;
+      } else if (isUsernameTaken(username)) {
+        document.getElementById("grp-username").classList.add("invalid");
+        document.querySelector("#grp-username .error-text").textContent = "This username is already taken.";
+        isValid = false;
+      }
+
+      // 3. Phone number must be exactly 10 digits
+      var phonePattern = /^[0-9]{10}$/;
+      if (!phonePattern.test(phone)) {
+        document.getElementById("grp-phone").classList.add("invalid");
+        isValid = false;
+      }
+
+      // 4. Password at least 6 characters
+      if (password.length < 6) {
+        document.getElementById("grp-password").classList.add("invalid");
+        isValid = false;
+      }
+
+      // 5. Passwords must match
+      if (password !== confirmPassword) {
+        document.getElementById("grp-confirm").classList.add("invalid");
+        isValid = false;
+      }
+
+      if (!isValid) {
+        showAlert("alertBox", "Please fix the errors below.", "error");
+        return; // stop here, do not save
+      }
+
+      // All checks passed -> save the new citizen user
+      var newUser = {
+        name: fullName,
+        username: username,
+        phone: phone,
+        password: password,
+        role: "citizen"
+      };
+      addUser(newUser);
+
+      showAlert("alertBox", "Registration successful! Redirecting to login...", "success");
+
+      setTimeout(function () {
+        window.location.href = "login.html";
+      }, 1200);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="brand"><span class="seal">G</span>GHMC Connect</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="register.html">Register</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="seal-lg">G</div>
+      <h2>Welcome Back</h2>
+      <p class="sub">Login to continue to your dashboard</p>
+
+      <div id="alertBox" class="alert"></div>
+
+      <!-- ROLE TOGGLE: decides which dashboard to open after login -->
+      <div class="role-toggle" id="roleToggle">
+        <button type="button" class="active" data-role="citizen">Citizen</button>
+        <button type="button" data-role="admin">Admin</button>
+        <button type="button" data-role="staff">Field Staff</button>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group" id="grp-username">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="Enter username">
+          <div class="error-text">Please enter your username.</div>
+        </div>
+
+        <div class="form-group" id="grp-password">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter password">
+          <div class="error-text">Please enter your password.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Login</button>
+      </form>
+
+      <div class="auth-footer">
+        New citizen? <a href="register.html">Register here</a><br><br>
+        <span style="font-size:0.78rem;">Demo logins &mdash; Admin: <b>admin / admin123</b> &nbsp;|&nbsp; Staff: <b>staff1 / staff123</b></span>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
+  <script>
+    /* WHAT: Role toggle buttons let the same login form work for
+       all 3 user types.
+       WHY: Citizen, Admin and Staff are separate roles that must
+       land on different dashboards (syllabus: Event Handling). */
+    var selectedRole = "citizen";
+    var roleButtons = document.querySelectorAll("#roleToggle button");
+
+    roleButtons.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        roleButtons.forEach(function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        selectedRole = btn.getAttribute("data-role");
+      });
+    });
+
+    var form = document.getElementById("loginForm");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      var username = document.getElementById("username").value.trim();
+      var password = document.getElementById("password").value;
+
+      document.getElementById("grp-username").classList.remove("invalid");
+      document.getElementById("grp-password").classList.remove("invalid");
+
+      var isValid = true;
+      if (username === "") {
+        document.getElementById("grp-username").classList.add("invalid");
+        isValid = false;
+      }
+      if (password === "") {
+        document.getElementById("grp-password").classList.add("invalid");
+        isValid = false;
+      }
+      if (!isValid) {
+        showAlert("alertBox", "Please fill in both fields.", "error");
+        return;
+      }
+
+      // Look up the user in our "database" (localStorage)
+      var user = findUser(username, password, selectedRole);
+
+      if (user === null) {
+        showAlert("alertBox", "Invalid username, password or role.", "error");
+        return;
+      }
+
+      // Save who is logged in, then redirect based on role
+      setCurrentUser(user);
+
+      if (selectedRole === "citizen") {
+        window.location.href = "citizen-dashboard.html";
+      } else if (selectedRole === "admin") {
+        window.location.href = "admin-dashboard.html";
+      } else {
+        window.location.href = "staff-dashboard.html";
+      }
+    });
+  </script>
+</body>
+</html>

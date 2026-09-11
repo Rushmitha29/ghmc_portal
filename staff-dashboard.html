@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Staff Dashboard - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="staff-dashboard.html" class="brand"><span class="seal">G</span>GHMC Connect <span style="font-size:0.7rem; background:#8B5CF6; padding:2px 8px; border-radius:10px; margin-left:6px;">STAFF</span></a>
+      <ul class="nav-links">
+        <li><a href="staff-dashboard.html">My Tasks</a></li>
+        <li class="dropdown">
+          <a href="#">Hi, <span id="navUserName">Staff</span> ▾</a>
+          <div class="dropdown-menu"><a href="#" id="logoutBtn">Logout</a></div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div class="container">
+      <h1>My Assigned Complaints</h1>
+      <p>Update work status and add remarks as you resolve each issue.</p>
+    </div>
+  </div>
+
+  <div class="container" style="padding-top:26px; padding-bottom:60px;">
+
+    <div class="dash-grid">
+      <div class="stat-card">
+        <div class="num" id="statAssigned">0</div>
+        <div class="lbl">Assigned to Me</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#8B5CF6;">
+        <div class="num" id="statProgress">0</div>
+        <div class="lbl">In Progress</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#16A34A;">
+        <div class="num" id="statResolved">0</div>
+        <div class="lbl">Resolved by Me</div>
+      </div>
+    </div>
+
+    <div id="listArea"></div>
+  </div>
+
+  <!-- DETAIL / UPDATE MODAL -->
+  <div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(18,58,52,0.55); z-index:200; align-items:center; justify-content:center; padding:20px;">
+    <div class="auth-card" style="max-width:460px; max-height:88vh; overflow-y:auto;">
+      <h3 id="modalId">GHMC...</h3>
+      <p class="sub" style="text-align:left;" id="modalTitle"></p>
+      <p style="font-size:0.88rem; color:#6B6B63; margin-bottom:16px;" id="modalDesc"></p>
+
+      <div class="form-group">
+        <label for="modalStatus">Update Work Status</label>
+        <select id="modalStatus">
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="modalRemark">Add Remark</label>
+        <textarea id="modalRemark" placeholder="e.g. Visited site, cleanup scheduled for tomorrow"></textarea>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="modalSaveBtn">Save Update</button>
+      <button class="btn btn-secondary btn-block" style="margin-top:10px;" id="modalCancelBtn">Close</button>
+    </div>
+  </div>
+
+  <footer>&copy; 2026 Greater Hyderabad Municipal Corporation — Smart Complaint Management System</footer>
+
+  <script src="js/script.js"></script>
+  <script>
+    var currentUser = requireRole("staff");
+    document.getElementById("navUserName").textContent = currentUser.name.split(" ")[0];
+    document.getElementById("logoutBtn").addEventListener("click", function (e) {
+      e.preventDefault();
+      logout();
+    });
+
+    var activeComplaintId = null;
+
+    function getMyTasks() {
+      var all = getComplaints();
+      var mine = [];
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].assignedStaff === currentUser.name) mine.push(all[i]);
+      }
+      return mine;
+    }
+
+    function refreshStats() {
+      var mine = getMyTasks();
+      var progress = 0, resolved = 0;
+      for (var i = 0; i < mine.length; i++) {
+        if (mine[i].status === "In Progress") progress++;
+        if (mine[i].status === "Resolved") resolved++;
+      }
+      document.getElementById("statAssigned").textContent = mine.length;
+      document.getElementById("statProgress").textContent = progress;
+      document.getElementById("statResolved").textContent = resolved;
+    }
+
+    function renderList() {
+      var mine = getMyTasks();
+      var listArea = document.getElementById("listArea");
+
+      if (mine.length === 0) {
+        listArea.innerHTML =
+          '<div class="empty-state"><div class="icon">📭</div><h3>No complaints assigned yet</h3>' +
+          '<p>Check back later — the Admin will assign complaints to you.</p></div>';
+        return;
+      }
+
+      var html = "";
+      for (var j = mine.length - 1; j >= 0; j--) {
+        var comp = mine[j];
+        var statusClass = statusToClass(comp.status);
+
+        html += '<div class="complaint-card">';
+        html += '  <div class="cc-left">';
+        html += '    <div class="cc-id">' + comp.id + '</div>';
+        html += '    <h4>' + comp.title + '</h4>';
+        html += '    <div class="cc-meta">📍 ' + comp.location + ' &nbsp;|&nbsp; 🗂️ ' + comp.category +
+                 ' &nbsp;|&nbsp; 👤 ' + comp.citizenName + '</div>';
+        html += '  </div>';
+        html += '  <div style="text-align:right;">';
+        html += '    <span class="badge badge-' + statusClass + '">' + comp.status + '</span>';
+        html += '    <span class="priority-tag priority-' + comp.priority + '">' + comp.priority + '</span><br><br>';
+        html += '    <button class="btn btn-primary btn-small" onclick="openModal(\'' + comp.id + '\')">View / Update</button>';
+        html += '  </div>';
+        html += '</div>';
+      }
+      listArea.innerHTML = html;
+    }
+
+    function openModal(complaintId) {
+      activeComplaintId = complaintId;
+      var comp = getComplaintById(complaintId);
+
+      document.getElementById("modalId").textContent = comp.id;
+      document.getElementById("modalTitle").textContent = comp.title + " — " + comp.location;
+      document.getElementById("modalDesc").textContent = comp.description;
+      document.getElementById("modalStatus").value = (comp.status === "Resolved") ? "Resolved" : "In Progress";
+      document.getElementById("modalRemark").value = "";
+
+      document.getElementById("modalOverlay").style.display = "flex";
+    }
+
+    document.getElementById("modalCancelBtn").addEventListener("click", function () {
+      document.getElementById("modalOverlay").style.display = "none";
+    });
+
+    document.getElementById("modalSaveBtn").addEventListener("click", function () {
+      var comp = getComplaintById(activeComplaintId);
+      comp.status = document.getElementById("modalStatus").value;
+
+      var remarkText = document.getElementById("modalRemark").value.trim();
+      if (remarkText !== "") {
+        comp.remarks.push({
+          text: remarkText,
+          date: new Date().toLocaleDateString()
+        });
+      }
+
+      updateComplaint(comp);
+
+      document.getElementById("modalOverlay").style.display = "none";
+      refreshStats();
+      renderList();
+    });
+
+    refreshStats();
+    renderList();
+  </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Complaints - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="citizen-dashboard.html" class="brand"><span class="seal">G</span>GHMC Connect</a>
+      <ul class="nav-links">
+        <li><a href="citizen-dashboard.html">Dashboard</a></li>
+        <li><a href="report-complaint.html">Report Complaint</a></li>
+        <li><a href="my-complaints.html">My Complaints</a></li>
+        <li class="dropdown">
+          <a href="#">Hi, <span id="navUserName">Citizen</span> ▾</a>
+          <div class="dropdown-menu"><a href="#" id="logoutBtn">Logout</a></div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div class="container">
+      <h1>My Complaints</h1>
+      <p>Full history of everything you've reported to GHMC.</p>
+    </div>
+  </div>
+
+  <div class="container" style="padding-top:26px; padding-bottom:60px;">
+
+    <!-- SEARCH / FILTER BAR -->
+    <div class="filter-bar">
+      <input type="text" id="searchBox" placeholder="Search by title or Complaint ID...">
+      <select id="statusFilter">
+        <option value="All">All Statuses</option>
+        <option value="Submitted">Submitted</option>
+        <option value="Under Review">Under Review</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+    </div>
+
+    <div id="listArea"></div>
+  </div>
+
+  <footer>&copy; 2026 Greater Hyderabad Municipal Corporation — Smart Complaint Management System</footer>
+
+  <script src="js/script.js"></script>
+  <script>
+    var currentUser = requireRole("citizen");
+    document.getElementById("navUserName").textContent = currentUser.name.split(" ")[0];
+    document.getElementById("logoutBtn").addEventListener("click", function (e) {
+      e.preventDefault();
+      logout();
+    });
+
+    // Get only this citizen's complaints
+    function getMyComplaints() {
+      var all = getComplaints();
+      var mine = [];
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].citizenUsername === currentUser.username) mine.push(all[i]);
+      }
+      return mine;
+    }
+
+    /* =========================================================
+       WHAT: Builds the HTML for the complaint list, applying the
+             current search text and status filter.
+       WHY:  This is DOM manipulation — we create elements/HTML
+             based on JavaScript data (syllabus: DOM).
+       ========================================================= */
+    function renderList() {
+      var searchText = document.getElementById("searchBox").value.toLowerCase();
+      var statusValue = document.getElementById("statusFilter").value;
+
+      var mine = getMyComplaints();
+      var filtered = [];
+
+      for (var i = 0; i < mine.length; i++) {
+        var c = mine[i];
+        var matchesSearch =
+          c.title.toLowerCase().includes(searchText) ||
+          c.id.toLowerCase().includes(searchText);
+        var matchesStatus = (statusValue === "All") || (c.status === statusValue);
+
+        if (matchesSearch && matchesStatus) filtered.push(c);
+      }
+
+      var listArea = document.getElementById("listArea");
+
+      if (filtered.length === 0) {
+        listArea.innerHTML =
+          '<div class="empty-state">' +
+          '<div class="icon">📭</div>' +
+          '<h3>No complaints found</h3>' +
+          '<p>Try changing your search or filter, or report a new complaint.</p>' +
+          '</div>';
+        return;
+      }
+
+      var html = "";
+      for (var j = filtered.length - 1; j >= 0; j--) { // newest first
+        var comp = filtered[j];
+        var statusClass = statusToClass(comp.status);
+
+        html += '<div class="complaint-card">';
+        html += '  <div class="cc-left">';
+        html += '    <div class="cc-id">' + comp.id + '</div>';
+        html += '    <h4>' + comp.title + '</h4>';
+        html += '    <div class="cc-meta">📍 ' + comp.location + ' &nbsp;|&nbsp; 🗂️ ' + comp.category + ' &nbsp;|&nbsp; 📅 ' + comp.createdDate + '</div>';
+        html += '  </div>';
+        html += '  <div style="text-align:right;">';
+        html += '    <span class="badge badge-' + statusClass + '">' + comp.status + '</span>';
+        html += '    <span class="priority-tag priority-' + comp.priority + '">' + comp.priority + '</span><br><br>';
+        html += '    <a class="btn btn-secondary btn-small" href="track-complaint.html?id=' + comp.id + '">Track</a>';
+        html += '  </div>';
+        html += '</div>';
+      }
+
+      listArea.innerHTML = html;
+    }
+
+    document.getElementById("searchBox").addEventListener("keyup", renderList);
+    document.getElementById("statusFilter").addEventListener("change", renderList);
+
+    renderList(); // initial load
+  </script>
+</body>
+</html>

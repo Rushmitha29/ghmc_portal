@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Complaint - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="citizen-dashboard.html" class="brand"><span class="seal">G</span>GHMC Connect</a>
+      <ul class="nav-links">
+        <li><a href="citizen-dashboard.html">Dashboard</a></li>
+        <li><a href="report-complaint.html">Report Complaint</a></li>
+        <li><a href="my-complaints.html">My Complaints</a></li>
+        <li class="dropdown">
+          <a href="#">Hi, <span id="navUserName">Citizen</span> ▾</a>
+          <div class="dropdown-menu"><a href="#" id="logoutBtn">Logout</a></div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div class="container">
+      <h1>Track Complaint</h1>
+      <p>Live status of your complaint, from submission to resolution.</p>
+    </div>
+  </div>
+
+  <div class="container" style="padding-top:30px; padding-bottom:60px;">
+    <div id="notFoundBox" class="empty-state" style="display:none;">
+      <div class="icon">❓</div>
+      <h3>Complaint not found</h3>
+      <p>Go back to <a href="my-complaints.html">My Complaints</a> and pick a valid complaint.</p>
+    </div>
+
+    <div id="detailBox" style="display:none;">
+
+      <div class="complaint-card" style="margin-bottom:30px;">
+        <div class="cc-left">
+          <div class="cc-id" id="dId"></div>
+          <h4 id="dTitle" style="font-size:1.3rem;"></h4>
+          <div class="cc-meta" id="dMeta"></div>
+        </div>
+        <div style="text-align:right;">
+          <span class="badge" id="dBadge"></span>
+          <span class="priority-tag" id="dPriority"></span>
+        </div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="auth-card" style="max-width:100%;">
+        <h3 style="margin-bottom:6px;">Progress</h3>
+        <div class="timeline" id="timeline">
+          <div class="t-step" id="step-Submitted">
+            <div class="t-dot">1</div>
+            <div class="t-label">Submitted</div>
+          </div>
+          <div class="t-step" id="step-Under-Review">
+            <div class="t-dot">2</div>
+            <div class="t-label">Under Review</div>
+          </div>
+          <div class="t-step" id="step-In-Progress">
+            <div class="t-dot">3</div>
+            <div class="t-label">In Progress</div>
+          </div>
+          <div class="t-step" id="step-Resolved">
+            <div class="t-dot">✓</div>
+            <div class="t-label">Resolved</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESCRIPTION + IMAGE -->
+      <div class="auth-card" style="max-width:100%; margin-top:24px;">
+        <h3>Complaint Details</h3><br>
+        <p id="dDescription" style="color:#6B6B63;"></p>
+        <img id="dImage" class="img-preview" style="display:none; margin-top:16px; max-width:280px;">
+      </div>
+
+      <!-- STAFF REMARKS -->
+      <div class="auth-card" style="max-width:100%; margin-top:24px;">
+        <h3>Updates from Field Staff</h3><br>
+        <div id="remarksList"></div>
+      </div>
+
+      <!-- FEEDBACK (only shown when status is Resolved) -->
+      <div class="auth-card" style="max-width:100%; margin-top:24px;" id="feedbackCard">
+        <h3>Give Feedback</h3>
+        <p class="sub" style="text-align:left;">Your complaint has been resolved. Let us know how we did.</p>
+        <div id="feedbackAlert" class="alert"></div>
+        <form id="feedbackForm">
+          <div class="form-group">
+            <label for="rating">Rating</label>
+            <select id="rating">
+              <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+              <option value="4">⭐⭐⭐⭐ Good</option>
+              <option value="3">⭐⭐⭐ Average</option>
+              <option value="2">⭐⭐ Poor</option>
+              <option value="1">⭐ Very Poor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="feedbackText">Comments (optional)</label>
+            <textarea id="feedbackText" placeholder="Tell us about your experience..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Submit Feedback</button>
+        </form>
+        <div id="feedbackDone" style="display:none;">
+          <p>✅ Thank you! You rated this <b id="savedRating"></b>/5.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>&copy; 2026 Greater Hyderabad Municipal Corporation — Smart Complaint Management System</footer>
+
+  <script src="js/script.js"></script>
+  <script>
+    var currentUser = requireRole("citizen");
+    document.getElementById("navUserName").textContent = currentUser.name.split(" ")[0];
+    document.getElementById("logoutBtn").addEventListener("click", function (e) {
+      e.preventDefault();
+      logout();
+    });
+
+    /* WHAT: Read the "id" value from the page URL, e.g.
+       track-complaint.html?id=GHMC20260001
+       WHY: So this ONE page can show ANY complaint, instead of
+       making a separate page for every complaint.
+       HOW: The URLSearchParams tool reads query-string values. */
+    var params = new URLSearchParams(window.location.search);
+    var complaintId = params.get("id");
+    var complaint = complaintId ? getComplaintById(complaintId) : null;
+
+    if (!complaint || complaint.citizenUsername !== currentUser.username) {
+      document.getElementById("notFoundBox").style.display = "block";
+    } else {
+      document.getElementById("detailBox").style.display = "block";
+
+      document.getElementById("dId").textContent = complaint.id;
+      document.getElementById("dTitle").textContent = complaint.title;
+      document.getElementById("dMeta").textContent =
+        "📍 " + complaint.location + (complaint.landmark ? " (near " + complaint.landmark + ")" : "") +
+        " | 🗂️ " + complaint.category + " | 📅 " + complaint.createdDate;
+      document.getElementById("dDescription").textContent = complaint.description;
+
+      var statusClass = statusToClass(complaint.status);
+      var badge = document.getElementById("dBadge");
+      badge.textContent = complaint.status;
+      badge.className = "badge badge-" + statusClass;
+
+      var pTag = document.getElementById("dPriority");
+      pTag.textContent = complaint.priority;
+      pTag.className = "priority-tag priority-" + complaint.priority;
+
+      if (complaint.image) {
+        var img = document.getElementById("dImage");
+        img.src = complaint.image;
+        img.style.display = "block";
+      }
+
+      // Mark timeline steps as done/active based on current status
+      var order = ["Submitted", "Under Review", "In Progress", "Resolved"];
+      var currentIndex = order.indexOf(complaint.status);
+
+      for (var i = 0; i < order.length; i++) {
+        var stepEl = document.getElementById("step-" + statusToClass(order[i]));
+        if (i < currentIndex) stepEl.classList.add("done");
+        else if (i === currentIndex) stepEl.classList.add("active");
+      }
+
+      // Show remarks left by field staff
+      var remarksList = document.getElementById("remarksList");
+      if (complaint.remarks.length === 0) {
+        remarksList.innerHTML = '<p style="color:#6B6B63;">No updates yet. Please check back later.</p>';
+      } else {
+        var rHtml = "";
+        for (var r = 0; r < complaint.remarks.length; r++) {
+          rHtml += '<div style="padding:12px 0; border-bottom:1px solid #E4E0D6;">';
+          rHtml += '<b>' + complaint.remarks[r].date + '</b> — ' + complaint.remarks[r].text;
+          rHtml += '</div>';
+        }
+        remarksList.innerHTML = rHtml;
+      }
+
+      // Feedback section only makes sense when Resolved
+      var feedbackCard = document.getElementById("feedbackCard");
+      if (complaint.status !== "Resolved") {
+        feedbackCard.style.display = "none";
+      } else if (complaint.feedback) {
+        // already submitted
+        document.getElementById("feedbackForm").style.display = "none";
+        document.getElementById("feedbackDone").style.display = "block";
+        document.getElementById("savedRating").textContent = complaint.feedback.rating;
+      }
+
+      document.getElementById("feedbackForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var rating = document.getElementById("rating").value;
+        var text = document.getElementById("feedbackText").value.trim();
+
+        complaint.feedback = { rating: rating, text: text };
+        updateComplaint(complaint);
+
+        showAlert("feedbackAlert", "Thanks for your feedback!", "success");
+        document.getElementById("feedbackForm").style.display = "none";
+        document.getElementById("feedbackDone").style.display = "block";
+        document.getElementById("savedRating").textContent = rating;
+      });
+    }
+  </script>
+</body>
+</html>

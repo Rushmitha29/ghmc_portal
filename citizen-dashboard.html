@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="citizen-dashboard.html" class="brand"><span class="seal">G</span>GHMC Connect</a>
+      <ul class="nav-links">
+        <li><a href="citizen-dashboard.html">Dashboard</a></li>
+        <li><a href="report-complaint.html">Report Complaint</a></li>
+        <li><a href="my-complaints.html">My Complaints</a></li>
+        <li class="dropdown">
+          <a href="#">Hi, <span id="navUserName">Citizen</span> ▾</a>
+          <div class="dropdown-menu">
+            <a href="#" id="logoutBtn">Logout</a>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div class="container">
+      <h1>Welcome back, <span id="welcomeName">Citizen</span> 👋</h1>
+      <p>Here's a quick overview of your complaints with GHMC.</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="dash-grid">
+      <div class="stat-card">
+        <div class="num" id="statTotal">0</div>
+        <div class="lbl">Total Complaints</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#3B82F6;">
+        <div class="num" id="statSubmitted">0</div>
+        <div class="lbl">Submitted / Under Review</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#8B5CF6;">
+        <div class="num" id="statProgress">0</div>
+        <div class="lbl">In Progress</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#16A34A;">
+        <div class="num" id="statResolved">0</div>
+        <div class="lbl">Resolved</div>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-bottom:60px;">
+      <div class="card">
+        <div class="cat-icon">📝</div>
+        <h3>Report a New Complaint</h3>
+        <p>Facing a civic issue? Let GHMC know with photo &amp; location.</p>
+        <br>
+        <a href="report-complaint.html" class="btn btn-primary btn-small">Report Now</a>
+      </div>
+      <div class="card">
+        <div class="cat-icon">📋</div>
+        <h3>View My Complaints</h3>
+        <p>See the full history and status of everything you've reported.</p>
+        <br>
+        <a href="my-complaints.html" class="btn btn-secondary btn-small">View All</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>&copy; 2026 Greater Hyderabad Municipal Corporation — Smart Complaint Management System</footer>
+
+  <script src="js/script.js"></script>
+  <script>
+    // WHY: block this page if nobody is logged in as a citizen
+    var currentUser = requireRole("citizen");
+
+    document.getElementById("navUserName").textContent = currentUser.name.split(" ")[0];
+    document.getElementById("welcomeName").textContent = currentUser.name;
+
+    document.getElementById("logoutBtn").addEventListener("click", function (e) {
+      e.preventDefault();
+      logout();
+    });
+
+    // Calculate this citizen's stats from the complaints array
+    var allComplaints = getComplaints();
+    var myComplaints = [];
+    for (var i = 0; i < allComplaints.length; i++) {
+      if (allComplaints[i].citizenUsername === currentUser.username) {
+        myComplaints.push(allComplaints[i]);
+      }
+    }
+
+    var submittedCount = 0, progressCount = 0, resolvedCount = 0;
+    for (var j = 0; j < myComplaints.length; j++) {
+      var s = myComplaints[j].status;
+      if (s === "Submitted" || s === "Under Review") submittedCount++;
+      else if (s === "In Progress") progressCount++;
+      else if (s === "Resolved") resolvedCount++;
+    }
+
+    document.getElementById("statTotal").textContent = myComplaints.length;
+    document.getElementById("statSubmitted").textContent = submittedCount;
+    document.getElementById("statProgress").textContent = progressCount;
+    document.getElementById("statResolved").textContent = resolvedCount;
+  </script>
+</body>
+</html>

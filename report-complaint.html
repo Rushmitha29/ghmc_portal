@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Complaint - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="citizen-dashboard.html" class="brand"><span class="seal">G</span>GHMC Connect</a>
+      <ul class="nav-links">
+        <li><a href="citizen-dashboard.html">Dashboard</a></li>
+        <li><a href="report-complaint.html">Report Complaint</a></li>
+        <li><a href="my-complaints.html">My Complaints</a></li>
+        <li class="dropdown">
+          <a href="#">Hi, <span id="navUserName">Citizen</span> ▾</a>
+          <div class="dropdown-menu"><a href="#" id="logoutBtn">Logout</a></div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div class="container">
+      <h1>Report a Complaint</h1>
+      <p>Fill in the details below. Fields marked * are required.</p>
+    </div>
+  </div>
+
+  <div class="container" style="max-width:700px; padding-top:34px; padding-bottom:60px;">
+    <div class="auth-card" style="max-width:100%;">
+
+      <div id="alertBox" class="alert"></div>
+
+      <form id="complaintForm" novalidate>
+
+        <div class="form-group" id="grp-category">
+          <label for="category">Complaint Category *</label>
+          <select id="category">
+            <option value="">-- Select a category --</option>
+            <option value="Garbage">Garbage</option>
+            <option value="Streetlight">Streetlight</option>
+            <option value="Water Leakage">Water Leakage</option>
+            <option value="Drainage">Drainage</option>
+            <option value="Fallen Tree">Fallen Tree</option>
+          </select>
+          <div class="error-text">Please select a category.</div>
+        </div>
+
+        <div class="form-group" id="grp-title">
+          <label for="title">Complaint Title *</label>
+          <input type="text" id="title" placeholder="e.g. Garbage not collected for 3 days">
+          <div class="error-text">Please enter a short title.</div>
+        </div>
+
+        <div class="form-group" id="grp-description">
+          <label for="description">Description *</label>
+          <textarea id="description" placeholder="Describe the issue in detail..."></textarea>
+          <div class="error-text">Please describe the issue (min 10 characters).</div>
+        </div>
+
+        <div class="form-group" id="grp-location">
+          <label for="location">Location / Area *</label>
+          <input type="text" id="location" placeholder="e.g. Ameerpet, Hyderabad">
+          <div class="error-text">Please enter the location.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="landmark">Nearby Landmark (optional)</label>
+          <input type="text" id="landmark" placeholder="e.g. Near SBI Bank">
+        </div>
+
+        <div class="form-group">
+          <label for="priority">Priority</label>
+          <select id="priority">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="image">Upload Image (optional)</label>
+          <input type="file" id="image" accept="image/*">
+          <img id="imgPreview" class="img-preview" alt="Preview">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Submit Complaint</button>
+      </form>
+    </div>
+  </div>
+
+  <footer>&copy; 2026 Greater Hyderabad Municipal Corporation — Smart Complaint Management System</footer>
+
+  <script src="js/script.js"></script>
+  <script>
+    var currentUser = requireRole("citizen");
+    document.getElementById("navUserName").textContent = currentUser.name.split(" ")[0];
+    document.getElementById("logoutBtn").addEventListener("click", function (e) {
+      e.preventDefault();
+      logout();
+    });
+
+    /* =========================================================
+       WHAT: Show a live preview of the uploaded image.
+       WHY:  Lets the citizen confirm they picked the right photo.
+       HOW:  FileReader reads the chosen file and converts it to a
+             "data URL" (base64 text) which we can put directly in
+             an <img src="..."> and also save into localStorage.
+       ========================================================= */
+    var imageDataUrl = ""; // will hold the base64 image text
+
+    document.getElementById("image").addEventListener("change", function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function (event) {
+        imageDataUrl = event.target.result;
+        var preview = document.getElementById("imgPreview");
+        preview.src = imageDataUrl;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    var form = document.getElementById("complaintForm");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      var category = document.getElementById("category").value;
+      var title = document.getElementById("title").value.trim();
+      var description = document.getElementById("description").value.trim();
+      var location = document.getElementById("location").value.trim();
+      var landmark = document.getElementById("landmark").value.trim();
+      var priority = document.getElementById("priority").value;
+
+      var groups = ["grp-category", "grp-title", "grp-description", "grp-location"];
+      for (var i = 0; i < groups.length; i++) {
+        document.getElementById(groups[i]).classList.remove("invalid");
+      }
+
+      var isValid = true;
+
+      if (category === "") {
+        document.getElementById("grp-category").classList.add("invalid");
+        isValid = false;
+      }
+      if (title === "") {
+        document.getElementById("grp-title").classList.add("invalid");
+        isValid = false;
+      }
+      if (description.length < 10) {
+        document.getElementById("grp-description").classList.add("invalid");
+        isValid = false;
+      }
+      if (location === "") {
+        document.getElementById("grp-location").classList.add("invalid");
+        isValid = false;
+      }
+
+      if (!isValid) {
+        showAlert("alertBox", "Please fill all required fields correctly.", "error");
+        return;
+      }
+
+      // Build the complaint object and generate its unique ID
+      var newComplaint = {
+        id: generateComplaintId(),
+        category: category,
+        title: title,
+        description: description,
+        location: location,
+        landmark: landmark,
+        priority: priority,
+        image: imageDataUrl,          // base64 text or "" if none
+        status: "Submitted",           // first stage of tracking
+        citizenUsername: currentUser.username,
+        citizenName: currentUser.name,
+        assignedStaff: "",
+        remarks: [],
+        createdDate: new Date().toLocaleDateString()
+      };
+
+      addComplaint(newComplaint);
+
+      showAlert("alertBox", "Complaint submitted! Your ID is " + newComplaint.id, "success");
+      form.reset();
+      document.getElementById("imgPreview").style.display = "none";
+
+      setTimeout(function () {
+        window.location.href = "my-complaints.html";
+      }, 1500);
+    });
+  </script>
+</body>
+</html>

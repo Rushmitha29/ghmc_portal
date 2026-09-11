@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard - GHMC Connect</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="admin-dashboard.html" class="brand"><span class="seal">G</span>GHMC Connect <span style="font-size:0.7rem; background:#E8871E; padding:2px 8px; border-radius:10px; margin-left:6px;">ADMIN</span></a>
+      <ul class="nav-links">
+        <li><a href="admin-dashboard.html">Dashboard</a></li>
+        <li class="dropdown">
+          <a href="#">Hi, <span id="navUserName">Admin</span> ▾</a>
+          <div class="dropdown-menu"><a href="#" id="logoutBtn">Logout</a></div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-head">
+    <div class="container">
+      <h1>GHMC Admin Dashboard</h1>
+      <p>Verify new complaints, assign them to field staff, and monitor progress.</p>
+    </div>
+  </div>
+
+  <div class="container" style="padding-bottom:60px;">
+
+    <div class="dash-grid">
+      <div class="stat-card">
+        <div class="num" id="statTotal">0</div>
+        <div class="lbl">Total Complaints</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#3B82F6;">
+        <div class="num" id="statSubmitted">0</div>
+        <div class="lbl">Submitted (needs review)</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#8B5CF6;">
+        <div class="num" id="statProgress">0</div>
+        <div class="lbl">In Progress</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#16A34A;">
+        <div class="num" id="statResolved">0</div>
+        <div class="lbl">Resolved</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="searchBox" placeholder="Search by title, ID or citizen name...">
+      <select id="statusFilter">
+        <option value="All">All Statuses</option>
+        <option value="Submitted">Submitted</option>
+        <option value="Under Review">Under Review</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+      <select id="categoryFilter">
+        <option value="All">All Categories</option>
+        <option value="Garbage">Garbage</option>
+        <option value="Streetlight">Streetlight</option>
+        <option value="Water Leakage">Water Leakage</option>
+        <option value="Drainage">Drainage</option>
+        <option value="Fallen Tree">Fallen Tree</option>
+      </select>
+    </div>
+
+    <div id="listArea"></div>
+  </div>
+
+  <!-- ============ ASSIGN MODAL (simple show/hide box, not a real popup library) ============ -->
+  <div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(18,58,52,0.55); z-index:200; align-items:center; justify-content:center;">
+    <div class="auth-card" style="max-width:420px;">
+      <h3 id="modalTitle">Verify &amp; Assign Complaint</h3><br>
+      <div class="form-group">
+        <label for="modalStaff">Assign to Field Staff</label>
+        <select id="modalStaff"></select>
+      </div>
+      <div class="form-group">
+        <label for="modalStatus">Set Status</label>
+        <select id="modalStatus">
+          <option value="Under Review">Under Review</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-block" id="modalSaveBtn">Save Changes</button>
+      <button class="btn btn-secondary btn-block" style="margin-top:10px;" id="modalCancelBtn">Cancel</button>
+    </div>
+  </div>
+
+  <footer>&copy; 2026 Greater Hyderabad Municipal Corporation — Smart Complaint Management System</footer>
+
+  <script src="js/script.js"></script>
+  <script>
+    var currentUser = requireRole("admin");
+    document.getElementById("navUserName").textContent = currentUser.name.split(" ")[0];
+    document.getElementById("logoutBtn").addEventListener("click", function (e) {
+      e.preventDefault();
+      logout();
+    });
+
+    var activeComplaintId = null; // which complaint the modal is currently editing
+
+    function refreshStats() {
+      var all = getComplaints();
+      var submitted = 0, progress = 0, resolved = 0;
+      for (var i = 0; i < all.length; i++) {
+        var s = all[i].status;
+        if (s === "Submitted") submitted++;
+        else if (s === "In Progress") progress++;
+        else if (s === "Resolved") resolved++;
+      }
+      document.getElementById("statTotal").textContent = all.length;
+      document.getElementById("statSubmitted").textContent = submitted;
+      document.getElementById("statProgress").textContent = progress;
+      document.getElementById("statResolved").textContent = resolved;
+    }
+
+    function renderList() {
+      var searchText = document.getElementById("searchBox").value.toLowerCase();
+      var statusValue = document.getElementById("statusFilter").value;
+      var categoryValue = document.getElementById("categoryFilter").value;
+
+      var all = getComplaints();
+      var filtered = [];
+
+      for (var i = 0; i < all.length; i++) {
+        var c = all[i];
+        var matchesSearch =
+          c.title.toLowerCase().includes(searchText) ||
+          c.id.toLowerCase().includes(searchText) ||
+          c.citizenName.toLowerCase().includes(searchText);
+        var matchesStatus = (statusValue === "All") || (c.status === statusValue);
+        var matchesCategory = (categoryValue === "All") || (c.category === categoryValue);
+
+        if (matchesSearch && matchesStatus && matchesCategory) filtered.push(c);
+      }
+
+      var listArea = document.getElementById("listArea");
+
+      if (filtered.length === 0) {
+        listArea.innerHTML =
+          '<div class="empty-state"><div class="icon">📭</div><h3>No complaints found</h3>' +
+          '<p>Try adjusting your search or filters.</p></div>';
+        return;
+      }
+
+      var html = "";
+      for (var j = filtered.length - 1; j >= 0; j--) {
+        var comp = filtered[j];
+        var statusClass = statusToClass(comp.status);
+
+        html += '<div class="complaint-card">';
+        html += '  <div class="cc-left">';
+        html += '    <div class="cc-id">' + comp.id + '</div>';
+        html += '    <h4>' + comp.title + '</h4>';
+        html += '    <div class="cc-meta">👤 ' + comp.citizenName + ' &nbsp;|&nbsp; 📍 ' + comp.location +
+                 ' &nbsp;|&nbsp; 🗂️ ' + comp.category +
+                 (comp.assignedStaff ? ' &nbsp;|&nbsp; 👷 Assigned: ' + comp.assignedStaff : ' &nbsp;|&nbsp; 👷 Not assigned') +
+                 '</div>';
+        html += '  </div>';
+        html += '  <div style="text-align:right;">';
+        html += '    <span class="badge badge-' + statusClass + '">' + comp.status + '</span>';
+        html += '    <span class="priority-tag priority-' + comp.priority + '">' + comp.priority + '</span><br><br>';
+        html += '    <button class="btn btn-primary btn-small" onclick="openModal(\'' + comp.id + '\')">Verify / Assign</button>';
+        html += '  </div>';
+        html += '</div>';
+      }
+      listArea.innerHTML = html;
+    }
+
+    // Fill the "Assign to Field Staff" dropdown with all staff users
+    function fillStaffDropdown() {
+      var users = getUsers();
+      var select = document.getElementById("modalStaff");
+      select.innerHTML = '<option value="">-- Not assigned --</option>';
+      for (var i = 0; i < users.length; i++) {
+        if (users[i].role === "staff") {
+          var opt = document.createElement("option");
+          opt.value = users[i].name;
+          opt.textContent = users[i].name;
+          select.appendChild(opt);
+        }
+      }
+    }
+
+    function openModal(complaintId) {
+      activeComplaintId = complaintId;
+      var comp = getComplaintById(complaintId);
+      fillStaffDropdown();
+      document.getElementById("modalStaff").value = comp.assignedStaff || "";
+      document.getElementById("modalStatus").value = (comp.status === "Submitted") ? "Under Review" : comp.status;
+      document.getElementById("modalOverlay").style.display = "flex";
+    }
+
+    document.getElementById("modalCancelBtn").addEventListener("click", function () {
+      document.getElementById("modalOverlay").style.display = "none";
+    });
+
+    document.getElementById("modalSaveBtn").addEventListener("click", function () {
+      var comp = getComplaintById(activeComplaintId);
+      comp.assignedStaff = document.getElementById("modalStaff").value;
+      comp.status = document.getElementById("modalStatus").value;
+      updateComplaint(comp);
+
+      document.getElementById("modalOverlay").style.display = "none";
+      refreshStats();
+      renderList();
+    });
+
+    document.getElementById("searchBox").addEventListener("keyup", renderList);
+    document.getElementById("statusFilter").addEventListener("change", renderList);
+    document.getElementById("categoryFilter").addEventListener("change", renderList);
+
+    refreshStats();
+    renderList();
+  </script>
+</body>
+</html>
